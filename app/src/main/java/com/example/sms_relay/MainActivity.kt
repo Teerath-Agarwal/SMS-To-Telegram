@@ -2,6 +2,7 @@ package com.example.sms_relay
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
@@ -120,7 +121,9 @@ fun RelayScreen() {
                             Text("Set to 'Unrestricted' to prevent delays during deep sleep.", style = MaterialTheme.typography.bodySmall)
                         }
                         TextButton(onClick = {
-                            val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                                data = Uri.parse("package:${context.packageName}")
+                            }
                             context.startActivity(intent)
                         }) {
                             Text("FIX")
