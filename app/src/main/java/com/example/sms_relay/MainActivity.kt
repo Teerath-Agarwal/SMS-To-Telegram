@@ -12,18 +12,22 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.example.sms_relay.ui.theme.SMSRelayTheme
 import kotlinx.coroutines.launch
 
@@ -54,6 +58,19 @@ fun RelayScreen() {
         mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
     }
 
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isIgnoringBattery = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { _ -> }
@@ -78,22 +95,29 @@ fun RelayScreen() {
             modifier = Modifier
                 .padding(innerPadding)
                 .padding(16.dp)
-                .fillMaxSize(),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (!isIgnoringBattery) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                OutlinedCard(
+                    colors = CardDefaults.outlinedCardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.BatteryAlert, contentDescription = null)
+                        Icon(
+                            Icons.Default.Info, 
+                            contentDescription = null, 
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Battery optimization is ON", style = MaterialTheme.typography.labelLarge)
-                            Text("Relay might fail in background.", style = MaterialTheme.typography.bodySmall)
+                            Text("Improve Reliability", style = MaterialTheme.typography.labelLarge)
+                            Text("Set to 'Unrestricted' to prevent delays during deep sleep.", style = MaterialTheme.typography.bodySmall)
                         }
                         TextButton(onClick = {
                             val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
