@@ -12,12 +12,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -46,11 +45,9 @@ fun RelayScreen() {
     val settings = remember { RelaySettings(context) }
 
     val forwardingNumber by settings.forwardingNumber.collectAsState(initial = "")
-    val regexList by settings.senderRegexList.collectAsState(initial = emptySet())
 
     var newNumber by remember { mutableStateOf("") }
-    var newRegex by remember { mutableStateOf("") }
-
+    
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var isIgnoringBattery by remember { 
         mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
@@ -64,15 +61,10 @@ fun RelayScreen() {
         permissionLauncher.launch(
             arrayOf(
                 Manifest.permission.RECEIVE_SMS,
-                Manifest.permission.SEND_SMS
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.POST_NOTIFICATIONS
             )
         )
-    }
-
-    LaunchedEffect(forwardingNumber) {
-        if (forwardingNumber != null) {
-            newNumber = forwardingNumber!!
-        }
     }
 
     Scaffold(
@@ -112,7 +104,7 @@ fun RelayScreen() {
                 }
             }
 
-            Text("Forwarding Settings", style = MaterialTheme.typography.titleMedium)
+            Text("Forwarding Number (SMS Fallback)", style = MaterialTheme.typography.titleMedium)
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -150,20 +142,13 @@ fun RelayScreen() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Relaying to:", style = MaterialTheme.typography.labelSmall)
+                            Text("Fallback to:", style = MaterialTheme.typography.labelSmall)
                             Text(forwardingNumber!!, style = MaterialTheme.typography.bodyLarge)
                         }
-                        Row {
-                            IconButton(onClick = {
-                                SmsRelayWorker.forwardSms(context, forwardingNumber!!, "[SMS Relay] Test Message")
-                            }) {
-                                Icon(Icons.Default.Send, contentDescription = "Test Send")
-                            }
-                            IconButton(onClick = {
-                                scope.launch { settings.updateForwardingNumber("") }
-                            }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Remove")
-                            }
+                        IconButton(onClick = {
+                            scope.launch { settings.updateForwardingNumber("") }
+                        }) {
+                            Icon(Icons.Default.Delete, contentDescription = "Remove")
                         }
                     }
                 }
@@ -171,51 +156,60 @@ fun RelayScreen() {
 
             HorizontalDivider()
 
-            Text("Filter Regex List", style = MaterialTheme.typography.titleMedium)
-            
+            Text("Test Relays", style = MaterialTheme.typography.titleMedium)
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedTextField(
-                    value = newRegex,
-                    onValueChange = { newRegex = it },
-                    label = { Text("Add Regex (e.g. .*BANK.*)") },
+                Button(
                     modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                Button(onClick = {
-                    if (newRegex.isNotBlank()) {
-                        scope.launch {
-                            settings.addRegex(newRegex)
-                            newRegex = ""
+                    onClick = {
+                        val intent = Intent(context, SmsForwardingService::class.java).apply {
+                            putExtra("EXTRA_TO", forwardingNumber)
+                            putExtra("EXTRA_BODY", "[Test] This is a Telegram Test Message")
+                            putExtra("EXTRA_FORCE_SMS", false)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startForegroundService(intent)
+                        } else {
+                            context.startService(intent)
                         }
                     }
-                }) {
-                    Text("Add")
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Test Telegram")
+                }
+
+                Button(
+                    modifier = Modifier.weight(1f),
+                    enabled = !forwardingNumber.isNullOrBlank(),
+                    onClick = {
+                        val intent = Intent(context, SmsForwardingService::class.java).apply {
+                            putExtra("EXTRA_TO", forwardingNumber)
+                            putExtra("EXTRA_BODY", "[Test] This is an SMS Fallback Test")
+                            putExtra("EXTRA_FORCE_SMS", true)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            context.startForegroundService(intent)
+                        } else {
+                            context.startService(intent)
+                        }
+                    }
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Test SMS")
                 }
             }
 
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(regexList.toList()) { regex ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(regex, modifier = Modifier.weight(1f))
-                            IconButton(onClick = { scope.launch { settings.removeRegex(regex) } }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete")
-                            }
-                        }
-                    }
-                }
-            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Note: Configure Bot Token and Chat ID in RelayConfig.kt",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
+            )
         }
     }
 }
