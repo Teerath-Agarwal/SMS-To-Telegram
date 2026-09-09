@@ -44,7 +44,7 @@ class SmsReceiver : BroadcastReceiver() {
                     }
 
                     if (isMatch) {
-                        val relayedMessage = "[SMS Relay - $sender]\n$body"
+                        val relayedMessage = "$sender]\n$body"
                         val serviceIntent = Intent(context, SmsForwardingService::class.java).apply {
                             putExtra("EXTRA_TO", forwardingNumber)
                             putExtra("EXTRA_BODY", relayedMessage)

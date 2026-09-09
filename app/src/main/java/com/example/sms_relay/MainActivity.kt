@@ -167,7 +167,7 @@ fun RelayScreen() {
                     onClick = {
                         val intent = Intent(context, SmsForwardingService::class.java).apply {
                             putExtra("EXTRA_TO", forwardingNumber)
-                            putExtra("EXTRA_BODY", "[Test] This is a Telegram Test Message")
+                            putExtra("EXTRA_BODY", "Test] This is a Telegram Test Message")
                             putExtra("EXTRA_FORCE_SMS", false)
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -188,7 +188,7 @@ fun RelayScreen() {
                     onClick = {
                         val intent = Intent(context, SmsForwardingService::class.java).apply {
                             putExtra("EXTRA_TO", forwardingNumber)
-                            putExtra("EXTRA_BODY", "[Test] This is an SMS Fallback Test")
+                            putExtra("EXTRA_BODY", "Test] This is an SMS Fallback Test")
                             putExtra("EXTRA_FORCE_SMS", true)
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

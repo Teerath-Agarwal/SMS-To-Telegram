@@ -37,13 +37,13 @@ class SmsForwardingService : Service() {
                     // 1. Primary: Telegram (if not forced SMS)
                     if (!forceSms && NetworkUtils.isInternetAvailable(this@SmsForwardingService)) {
                         Log.d("RelayService", "Attempting Telegram relay")
-                        relayed = TelegramNotificationService.sendMessage(body)
+                        relayed = TelegramNotificationService.sendMessage("[$body")
                     }
 
                     // 2. Fallback: SMS (if Telegram failed or no internet or forced)
                     if (!relayed && !to.isNullOrBlank()) {
                         Log.d("RelayService", "Attempting SMS relay fallback to $to")
-                        SmsRelayWorker.forwardSms(this@SmsForwardingService, to, body, subId)
+                        SmsRelayWorker.forwardSms(this@SmsForwardingService, to, "[SMS Relay - $body", subId)
                         // Note: forwardSms is fire-and-forget in terms of carrier ack here,
                         // but it ensures the command is sent to the modem.
                     } else if (!relayed) {
