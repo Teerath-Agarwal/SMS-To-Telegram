@@ -13,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Send
@@ -142,7 +143,6 @@ fun RelayScreen() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Fallback to:", style = MaterialTheme.typography.labelSmall)
                             Text(forwardingNumber!!, style = MaterialTheme.typography.bodyLarge)
                         }
                         IconButton(onClick = {
@@ -177,7 +177,7 @@ fun RelayScreen() {
                         }
                     }
                 ) {
-                    Icon(Icons.Default.Share, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Test Telegram")
                 }
@@ -198,18 +198,11 @@ fun RelayScreen() {
                         }
                     }
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
                     Text("Test SMS")
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "Note: Configure Bot Token and Chat ID in RelayConfig.kt",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary
-            )
         }
     }
 }
