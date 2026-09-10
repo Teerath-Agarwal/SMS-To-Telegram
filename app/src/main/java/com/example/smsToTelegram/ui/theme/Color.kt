@@ -1,4 +1,4 @@
-package com.example.sms_relay.ui.theme
+package com.example.smsToTelegram.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

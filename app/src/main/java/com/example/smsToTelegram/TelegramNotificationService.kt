@@ -1,4 +1,4 @@
-package com.example.sms_relay
+package com.example.smsToTelegram
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers

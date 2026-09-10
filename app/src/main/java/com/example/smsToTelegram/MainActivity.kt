@@ -1,4 +1,4 @@
-package com.example.sms_relay
+package com.example.smsToTelegram
 
 import android.Manifest
 import android.content.Intent
@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
@@ -29,7 +28,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.example.sms_relay.ui.theme.SMSRelayTheme
+import com.example.smsToTelegram.ui.theme.SMSRelayTheme
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {

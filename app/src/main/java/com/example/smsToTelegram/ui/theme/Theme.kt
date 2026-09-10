@@ -1,6 +1,5 @@
-package com.example.sms_relay.ui.theme
+package com.example.smsToTelegram.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

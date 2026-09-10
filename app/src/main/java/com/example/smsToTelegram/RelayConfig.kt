@@ -1,4 +1,4 @@
-package com.example.sms_relay
+package com.example.smsToTelegram
 
 object RelayConfig {
     const val TELEGRAM_BOT_TOKEN = "DUMMY_BOT_TOKEN"

@@ -1,4 +1,4 @@
-package com.example.sms_relay
+package com.example.smsToTelegram
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent

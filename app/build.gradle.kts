@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.sms_relay"
+    namespace = "com.example.smsToTelegram"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.sms_relay"
+        applicationId = "com.example.smsToTelegram"
         minSdk = 24
         targetSdk = 37
         versionCode = 1

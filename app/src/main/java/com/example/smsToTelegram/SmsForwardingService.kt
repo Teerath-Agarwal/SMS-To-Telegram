@@ -1,7 +1,6 @@
-package com.example.sms_relay
+package com.example.smsToTelegram
 
 import android.app.*
-import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
