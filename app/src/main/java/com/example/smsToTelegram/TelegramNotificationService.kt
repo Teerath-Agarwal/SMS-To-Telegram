@@ -15,16 +15,15 @@ object TelegramNotificationService {
     /**
      * Sends a text message to the configured Telegram chat.
      */
-    suspend fun sendMessage(message: String): Boolean = withContext(Dispatchers.IO) {
-        if (RelayConfig.TELEGRAM_BOT_TOKEN == "DUMMY_BOT_TOKEN" ||
-            RelayConfig.TELEGRAM_CHAT_ID == "DUMMY_CHAT_ID") {
-            Log.e(TAG, "Telegram config not set in RelayConfig.kt")
+    suspend fun sendMessage(message: String, token: String, chatId: String): Boolean = withContext(Dispatchers.IO) {
+        if (token.isBlank() || chatId.isBlank()) {
+            Log.e(TAG, "Telegram credentials are empty")
             return@withContext false
         }
 
         var connection: HttpURLConnection? = null
         try {
-            val url = URL("$TELEGRAM_API${RelayConfig.TELEGRAM_BOT_TOKEN}/sendMessage")
+            val url = URL("$TELEGRAM_API$token/sendMessage")
 
             connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "POST"
@@ -36,7 +35,7 @@ object TelegramNotificationService {
             }
 
             val requestBody = JSONObject().apply {
-                put("chat_id", RelayConfig.TELEGRAM_CHAT_ID)
+                put("chat_id", chatId)
                 put("text", message)
             }.toString()
 

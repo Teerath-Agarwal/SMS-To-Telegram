@@ -8,6 +8,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.first
 
 class SmsForwardingService : Service() {
 
@@ -31,22 +32,24 @@ class SmsForwardingService : Service() {
 
             serviceScope.launch {
                 try {
+                    val settings = RelaySettings(this@SmsForwardingService)
                     var relayed = false
 
                     // 1. Primary: Telegram (if not forced SMS)
                     if (!forceSms && NetworkUtils.isInternetAvailable(this@SmsForwardingService)) {
-                        Log.d("RelayService", "Attempting Telegram relay")
-                        relayed = TelegramNotificationService.sendMessage("[$body")
+                        val token = settings.telegramToken.first() ?: ""
+                        val chatId = settings.telegramChatId.first() ?: ""
+                        
+                        if (token.isNotBlank() && chatId.isNotBlank()) {
+                            Log.d("RelayService", "Attempting Telegram relay")
+                            relayed = TelegramNotificationService.sendMessage("[$body", token, chatId)
+                        }
                     }
 
-                    // 2. Fallback: SMS (if Telegram failed or no internet or forced)
+                    // 2. Fallback: SMS
                     if (!relayed && !to.isNullOrBlank()) {
                         Log.d("RelayService", "Attempting SMS relay fallback to $to")
                         SmsRelayWorker.forwardSms(this@SmsForwardingService, to, "[SMS Relay - $body", subId)
-                        // Note: forwardSms is fire-and-forget in terms of carrier ack here,
-                        // but it ensures the command is sent to the modem.
-                    } else if (!relayed) {
-                        Log.e("RelayService", "All relay methods failed and no fallback number set")
                     }
 
                 } finally {

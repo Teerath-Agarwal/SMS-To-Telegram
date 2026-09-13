@@ -17,7 +17,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +28,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.smsToTelegram.ui.theme.SMSRelayTheme
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -46,12 +44,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun RelayScreen() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val settings = remember { RelaySettings(context) }
 
-    val forwardingNumber by settings.forwardingNumber.collectAsState(initial = "")
-
-    var newNumber by remember { mutableStateOf("") }
+    val fwdNumber by settings.forwardingNumber.collectAsState(initial = "...")
+    val tgToken by settings.telegramToken.collectAsState(initial = "")
     
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var isIgnoringBattery by remember { 
@@ -76,11 +72,13 @@ fun RelayScreen() {
     ) { _ -> }
 
     LaunchedEffect(Unit) {
+        settings.ensureSeeded()
         permissionLauncher.launch(
             arrayOf(
                 Manifest.permission.RECEIVE_SMS,
                 Manifest.permission.SEND_SMS,
-                Manifest.permission.POST_NOTIFICATIONS
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 
+                    Manifest.permission.POST_NOTIFICATIONS else Manifest.permission.RECEIVE_SMS
             )
         )
     }
@@ -88,7 +86,7 @@ fun RelayScreen() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         topBar = {
-            TopAppBar(title = { Text("SMS Relay Settings") })
+            TopAppBar(title = { Text("SMS Relay Dashboard") })
         }
     ) { innerPadding ->
         Column(
@@ -110,14 +108,10 @@ fun RelayScreen() {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Info, 
-                            contentDescription = null, 
-                            tint = MaterialTheme.colorScheme.primary
-                        )
+                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Improve Reliability", style = MaterialTheme.typography.labelLarge)
-                            Text("Set to 'Unrestricted' to prevent delays during deep sleep.", style = MaterialTheme.typography.bodySmall)
+                            Text("Set to 'Unrestricted' for instant delivery during idle.", style = MaterialTheme.typography.bodySmall)
                         }
                         TextButton(onClick = {
                             val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
@@ -131,58 +125,18 @@ fun RelayScreen() {
                 }
             }
 
-            Text("Forwarding Number (SMS Fallback)", style = MaterialTheme.typography.titleMedium)
-            
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = newNumber,
-                    onValueChange = { newNumber = it },
-                    label = { Text("Primary Phone Number") },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    enabled = forwardingNumber.isNullOrBlank()
-                )
-                Button(
-                    onClick = {
-                        if (newNumber.isNotBlank()) {
-                            scope.launch {
-                                settings.updateForwardingNumber(newNumber)
-                                newNumber = ""
-                            }
-                        }
-                    },
-                    enabled = forwardingNumber.isNullOrBlank()
-                ) {
-                    Text("Set")
-                }
-            }
-
-            if (!forwardingNumber.isNullOrBlank()) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(12.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(forwardingNumber!!, style = MaterialTheme.typography.bodyLarge)
-                        }
-                        IconButton(onClick = {
-                            scope.launch { settings.updateForwardingNumber("") }
-                        }) {
-                            Icon(Icons.Default.Delete, contentDescription = "Remove")
-                        }
-                    }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Service Status", style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(8.dp))
+                    StatusRow("Telegram Relay", if (tgToken.isNotBlank()) "Configured" else "Missing")
+                    StatusRow("SMS Fallback", if (fwdNumber.isNotBlank()) "Configured" else "Missing")
                 }
             }
 
             HorizontalDivider()
 
-            Text("Test Relays", style = MaterialTheme.typography.titleMedium)
+            Text("Manual Tests", style = MaterialTheme.typography.titleMedium)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -192,8 +146,8 @@ fun RelayScreen() {
                     modifier = Modifier.weight(1f),
                     onClick = {
                         val intent = Intent(context, SmsForwardingService::class.java).apply {
-                            putExtra("EXTRA_TO", forwardingNumber)
-                            putExtra("EXTRA_BODY", "Test] This is a Telegram Test Message")
+                            putExtra("EXTRA_TO", fwdNumber)
+                            putExtra("EXTRA_BODY", "Test] Telegram Manual Test")
                             putExtra("EXTRA_FORCE_SMS", false)
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -205,16 +159,16 @@ fun RelayScreen() {
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Test Telegram")
+                    Text("Telegram")
                 }
 
                 Button(
                     modifier = Modifier.weight(1f),
-                    enabled = !forwardingNumber.isNullOrBlank(),
+                    enabled = fwdNumber.isNotBlank(),
                     onClick = {
                         val intent = Intent(context, SmsForwardingService::class.java).apply {
-                            putExtra("EXTRA_TO", forwardingNumber)
-                            putExtra("EXTRA_BODY", "Test] This is an SMS Fallback Test")
+                            putExtra("EXTRA_TO", fwdNumber)
+                            putExtra("EXTRA_BODY", "Test] SMS Fallback Test")
                             putExtra("EXTRA_FORCE_SMS", true)
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -226,10 +180,21 @@ fun RelayScreen() {
                 ) {
                     Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                     Spacer(Modifier.width(8.dp))
-                    Text("Test SMS")
+                    Text("SMS")
                 }
             }
         }
+    }
+}
+
+@Composable
+fun StatusRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
     }
 }
 

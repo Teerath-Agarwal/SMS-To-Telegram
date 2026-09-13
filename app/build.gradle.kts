@@ -1,6 +1,26 @@
+import java.util.Properties
+import java.util.Base64
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+}
+
+fun obfuscate(input: String?): String {
+    if (input == null) return ""
+    val key = "dVNHpXazVOYmtKU1RraGtUVTlITlZOTldIQlZUbTFLV2sx"
+    val sb = StringBuilder()
+    for (i in input.indices) {
+        sb.append((input[i].code xor key[i % key.length].code).toChar())
+    }
+    return Base64.getEncoder().encodeToString(sb.toString().toByteArray())
+}
+
+val localProperties = Properties().apply {
+    val propertiesFile = rootProject.file("local.properties")
+    if (propertiesFile.exists()) {
+        propertiesFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -17,6 +37,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Store OBFUSCATED versions in BuildConfig
+        buildConfigField("String", "SEED_TG_TOKEN", "\"${obfuscate(localProperties.getProperty("telegram.bot.token"))}\"")
+        buildConfigField("String", "SEED_TG_CHAT_ID", "\"${obfuscate(localProperties.getProperty("telegram.chat.id"))}\"")
+        buildConfigField("String", "SEED_FWD_NUMBER", "\"${obfuscate(localProperties.getProperty("forwarding.number"))}\"")
     }
 
     buildTypes {
@@ -32,6 +57,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
