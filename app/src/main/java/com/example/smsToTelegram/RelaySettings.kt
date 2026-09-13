@@ -1,15 +1,14 @@
 package com.example.smsToTelegram
 
 import android.content.Context
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+val Context.dataStore by preferencesDataStore(name = "settings")
 
 class RelaySettings(private val context: Context) {
 
@@ -17,12 +16,10 @@ class RelaySettings(private val context: Context) {
         private val SECURE_TOKEN = stringPreferencesKey("secure_token")
         private val SECURE_CHAT_ID = stringPreferencesKey("secure_chat_id")
         private val SECURE_FWD_NUMBER = stringPreferencesKey("secure_fwd_number")
+        private val SENDER_REGEX_LIST = stringSetPreferencesKey("sender_regex_list")
     }
 
-    /**
-     * Reads and decrypts a value from DataStore.
-     */
-    private fun getSecureValue(key: Preferences.Key<String>): Flow<String> {
+    private fun getSecureValue(key: androidx.datastore.preferences.core.Preferences.Key<String>): Flow<String> {
         return context.dataStore.data.map { prefs ->
             val encryptedValue = prefs[key]
             if (encryptedValue.isNullOrBlank()) {
@@ -41,10 +38,25 @@ class RelaySettings(private val context: Context) {
     val telegramChatId: Flow<String> = getSecureValue(SECURE_CHAT_ID)
     val forwardingNumber: Flow<String> = getSecureValue(SECURE_FWD_NUMBER)
 
-    /**
-     * Call this on app start to ensure the hardware-locked vault is seeded 
-     * with the obfuscated defaults from BuildConfig.
-     */
+    // Non-encrypted storage for simple Regex list
+    val senderRegexList: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[SENDER_REGEX_LIST] ?: emptySet()
+    }
+
+    suspend fun addRegex(regex: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[SENDER_REGEX_LIST] ?: emptySet()
+            prefs[SENDER_REGEX_LIST] = current + regex
+        }
+    }
+
+    suspend fun removeRegex(regex: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[SENDER_REGEX_LIST] ?: emptySet()
+            prefs[SENDER_REGEX_LIST] = current - regex
+        }
+    }
+
     suspend fun ensureSeeded() {
         context.dataStore.edit { prefs ->
             if (prefs[SECURE_TOKEN].isNullOrBlank()) {

@@ -17,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.example.smsToTelegram.ui.theme.SMSRelayTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -44,10 +46,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun RelayScreen() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val settings = remember { RelaySettings(context) }
 
     val fwdNumber by settings.forwardingNumber.collectAsState(initial = "...")
     val tgToken by settings.telegramToken.collectAsState(initial = "")
+    val regexList by settings.senderRegexList.collectAsState(initial = emptySet())
+
+    var newRegex by remember { mutableStateOf("") }
     
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var isIgnoringBattery by remember { 
@@ -131,6 +137,65 @@ fun RelayScreen() {
                     Spacer(Modifier.height(8.dp))
                     StatusRow("Telegram Relay", if (tgToken.isNotBlank()) "Configured" else "Missing")
                     StatusRow("SMS Fallback", if (fwdNumber.isNotBlank()) "Configured" else "Missing")
+                }
+            }
+
+            HorizontalDivider()
+
+            Text("Sender Filters (Regex)", style = MaterialTheme.typography.titleMedium)
+            
+            if (regexList.isEmpty()) {
+                Text(
+                    "No filters active. All incoming SMS will be relayed.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = newRegex,
+                    onValueChange = { newRegex = it },
+                    label = { Text("Add Regex (e.g. .*BANK.*)") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+                Button(onClick = {
+                    if (newRegex.isNotBlank()) {
+                        scope.launch {
+                            settings.addRegex(newRegex)
+                            newRegex = ""
+                        }
+                    }
+                }) {
+                    Text("Add")
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                regexList.forEach { regex ->
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(regex, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                            IconButton(onClick = {
+                                scope.launch { settings.removeRegex(regex) }
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Remove", modifier = Modifier.size(20.dp))
+                            }
+                        }
+                    }
                 }
             }
 

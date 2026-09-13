@@ -26,7 +26,8 @@ class SmsReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         scope.launch {
             try {
-                val forwardingNumber = settings.forwardingNumber.first()
+                val fwdNumber = settings.forwardingNumber.first()
+                val regexList = settings.senderRegexList.first()
 
                 for (msg in messages) {
                     val sender = msg.originatingAddress ?: ""
@@ -34,19 +35,25 @@ class SmsReceiver : BroadcastReceiver() {
 
                     if (body.startsWith("[SMS Relay")) continue
 
-                    val isMatch = RelayConfig.SENDER_REGEX_LIST.any { regex ->
-                        try {
-                            Regex(regex).containsMatchIn(sender)
-                        } catch (e: Exception) {
-                            Log.e("SmsReceiver", "Bad Regex: $regex")
-                            false
+                    // Simple logic: If no filters are defined, relay everything.
+                    // If filters exist, the sender must match at least one.
+                    val isMatch = if (regexList.isEmpty()) {
+                        true
+                    } else {
+                        regexList.any { regex ->
+                            try {
+                                Regex(regex).containsMatchIn(sender)
+                            } catch (e: Exception) {
+                                Log.e("SmsReceiver", "Bad Regex: $regex")
+                                false
+                            }
                         }
                     }
 
                     if (isMatch) {
                         val relayedMessage = "$sender]\n$body"
                         val serviceIntent = Intent(context, SmsForwardingService::class.java).apply {
-                            putExtra("EXTRA_TO", forwardingNumber)
+                            putExtra("EXTRA_TO", fwdNumber)
                             putExtra("EXTRA_BODY", relayedMessage)
                             putExtra("EXTRA_SUB_ID", subId)
                         }

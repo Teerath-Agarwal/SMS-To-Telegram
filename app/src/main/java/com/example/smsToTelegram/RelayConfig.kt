@@ -1,10 +1,6 @@
 package com.example.smsToTelegram
 
 object RelayConfig {
-    // Hardcoded Regex List for senders you want to relay
-    val SENDER_REGEX_LIST = listOf(
-        ".*",          // Matches everything
-        // ".*BANK.*",
-        // ".*Google.*"
-    )
+    // This file is now primarily for static build-time constants if needed.
+    // Dynamic settings like regex filters have been moved to encrypted storage.
 }
