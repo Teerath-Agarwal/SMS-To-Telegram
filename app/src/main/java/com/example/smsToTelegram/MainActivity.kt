@@ -51,9 +51,15 @@ fun RelayScreen() {
 
     val fwdNumber by settings.forwardingNumber.collectAsState(initial = "...")
     val tgToken by settings.telegramToken.collectAsState(initial = "")
+    val userName by settings.userName.collectAsState(initial = "")
     val regexList by settings.senderRegexList.collectAsState(initial = emptySet())
 
     var newRegex by remember { mutableStateOf("") }
+    var editedUserName by remember { mutableStateOf("") }
+    
+    LaunchedEffect(userName) {
+        editedUserName = userName
+    }
     
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var isIgnoringBattery by remember { 
@@ -137,6 +143,42 @@ fun RelayScreen() {
                     Spacer(Modifier.height(8.dp))
                     StatusRow("Telegram Relay", if (tgToken.isNotBlank()) "Configured" else "Missing")
                     StatusRow("SMS Fallback", if (fwdNumber.isNotBlank()) "Configured" else "Missing")
+                    StatusRow("User Name", userName.ifBlank { "Not Set" })
+                }
+            }
+
+            HorizontalDivider()
+
+            Text("Identity Settings", style = MaterialTheme.typography.titleMedium)
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = editedUserName,
+                    onValueChange = { editedUserName = it },
+                    label = { Text("Display Name") },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+                Button(onClick = {
+                    scope.launch {
+                        settings.updateUserName(editedUserName)
+                    }
+                }) {
+                    Text("Set")
+                }
+                if (userName.isNotBlank()) {
+                    IconButton(onClick = {
+                        scope.launch {
+                            settings.updateUserName("")
+                            editedUserName = ""
+                        }
+                    }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Reset")
+                    }
                 }
             }
 

@@ -17,6 +17,7 @@ class RelaySettings(private val context: Context) {
         private val SECURE_CHAT_ID = stringPreferencesKey("secure_chat_id")
         private val SECURE_FWD_NUMBER = stringPreferencesKey("secure_fwd_number")
         private val SENDER_REGEX_LIST = stringSetPreferencesKey("sender_regex_list")
+        private val USER_NAME = stringPreferencesKey("user_name")
     }
 
     private fun getSecureValue(key: androidx.datastore.preferences.core.Preferences.Key<String>): Flow<String> {
@@ -37,6 +38,16 @@ class RelaySettings(private val context: Context) {
     val telegramToken: Flow<String> = getSecureValue(SECURE_TOKEN)
     val telegramChatId: Flow<String> = getSecureValue(SECURE_CHAT_ID)
     val forwardingNumber: Flow<String> = getSecureValue(SECURE_FWD_NUMBER)
+
+    val userName: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[USER_NAME] ?: ""
+    }
+
+    suspend fun updateUserName(name: String) {
+        context.dataStore.edit { prefs ->
+            prefs[USER_NAME] = name
+        }
+    }
 
     // Non-encrypted storage for simple Regex list
     val senderRegexList: Flow<Set<String>> = context.dataStore.data.map { prefs ->
