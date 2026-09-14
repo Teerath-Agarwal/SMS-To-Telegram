@@ -1,7 +1,11 @@
 package com.example.smsToTelegram
 
 import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -24,10 +28,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.smsToTelegram.ui.theme.SMSRelayTheme
 import kotlinx.coroutines.launch
 
@@ -35,11 +40,30 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        createNotificationChannel(this)
         setContent {
             SMSRelayTheme {
                 RelayScreen()
             }
         }
+    }
+}
+
+/**
+ * Creates the notification channel early so the system recognizes the app's
+ * notification capabilities, preventing the "This app doesn't send notifications" error.
+ */
+fun createNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channel = NotificationChannel(
+            "relay_channel",
+            "SMS Relay",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Shows progress of SMS relaying"
+        }
+        val manager = context.getSystemService(NotificationManager::class.java)
+        manager.createNotificationChannel(channel)
     }
 }
 
@@ -65,12 +89,16 @@ fun RelayScreen() {
     var isIgnoringBattery by remember { 
         mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
     }
+    var arePermissionsGranted by remember { 
+        mutableStateOf(checkCorePermissions(context))
+    }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 isIgnoringBattery = powerManager.isIgnoringBatteryOptimizations(context.packageName)
+                arePermissionsGranted = checkCorePermissions(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -81,17 +109,21 @@ fun RelayScreen() {
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ -> }
+    ) { _ -> 
+        arePermissionsGranted = checkCorePermissions(context)
+    }
 
     LaunchedEffect(Unit) {
         settings.ensureSeeded()
         permissionLauncher.launch(
-            arrayOf(
+            mutableListOf(
                 Manifest.permission.RECEIVE_SMS,
-                Manifest.permission.SEND_SMS,
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 
-                    Manifest.permission.POST_NOTIFICATIONS else Manifest.permission.RECEIVE_SMS
-            )
+                Manifest.permission.SEND_SMS
+            ).apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    add(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }.toTypedArray()
         )
     }
 
@@ -109,33 +141,19 @@ fun RelayScreen() {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (!isIgnoringBattery) {
-                OutlinedCard(
-                    colors = CardDefaults.outlinedCardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Improve Reliability", style = MaterialTheme.typography.labelLarge)
-                            Text("Set to 'Unrestricted' for instant delivery during idle.", style = MaterialTheme.typography.bodySmall)
-                        }
-                        TextButton(onClick = {
-                            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
-                                data = Uri.parse("package:${context.packageName}")
-                            }
-                            context.startActivity(intent)
-                        }) {
-                            Text("FIX")
-                        }
-                    }
-                }
-            }
+            ReliabilityBanner(
+                isVisible = !isIgnoringBattery,
+                title = "Improve Reliability",
+                description = "Set to 'Unrestricted' for instant delivery during idle.",
+                action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
+            )
+
+            ReliabilityBanner(
+                isVisible = !arePermissionsGranted,
+                title = "Allow Permissions",
+                description = "This app requires additional permissions to function correctly. Please enable 'Allow restricted settings' for this app.",
+                action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            )
 
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -292,6 +310,56 @@ fun RelayScreen() {
             }
         }
     }
+}
+
+@Composable
+fun ReliabilityBanner(
+    isVisible: Boolean,
+    title: String,
+    description: String,
+    action: String
+) {
+    val context = LocalContext.current
+    if (isVisible) {
+        OutlinedCard(
+            colors = CardDefaults.outlinedCardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.labelLarge)
+                    Text(description, style = MaterialTheme.typography.bodySmall)
+                }
+                TextButton(onClick = {
+                    val intent = Intent(action).apply {
+                        data = Uri.fromParts("package", context.packageName, null)
+                    }
+                    context.startActivity(intent)
+                }) {
+                    Text("FIX")
+                }
+            }
+        }
+    }
+}
+
+private fun checkCorePermissions(context: Context): Boolean {
+    val smsReceive = ContextCompat.checkSelfPermission(context, Manifest.permission.RECEIVE_SMS) == PackageManager.PERMISSION_GRANTED
+    val smsSend = ContextCompat.checkSelfPermission(context, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED
+
+    // Notifications are important but not "core" to the relay logic itself.
+    // However, if we want the banner to disappear only when everything is perfect:
+    val notifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    } else true
+    
+    return smsReceive && smsSend && notifications
 }
 
 @Composable
