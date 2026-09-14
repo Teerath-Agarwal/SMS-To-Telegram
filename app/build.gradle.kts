@@ -8,10 +8,11 @@ plugins {
 
 fun obfuscate(input: String?): String {
     if (input == null) return ""
+    val cleanInput = input.trim().removeSurrounding("\"").removeSurrounding("'")
     val key = "dVNHpXazVOYmtKU1RraGtUVTlITlZOTldIQlZUbTFLV2sx"
     val sb = StringBuilder()
-    for (i in input.indices) {
-        sb.append((input[i].code xor key[i % key.length].code).toChar())
+    for (i in cleanInput.indices) {
+        sb.append((cleanInput[i].code xor key[i % key.length].code).toChar())
     }
     return Base64.getEncoder().encodeToString(sb.toString().toByteArray())
 }
