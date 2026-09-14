@@ -37,13 +37,13 @@ class SmsForwardingService : Service() {
 
                     // 1. Primary: Telegram (if not forced SMS)
                     if (!forceSms && NetworkUtils.isInternetAvailable(this@SmsForwardingService)) {
-                        val token = settings.telegramToken.first() ?: ""
-                        val chatId = settings.telegramChatId.first() ?: ""
-                        val prefix = settings.userName.first() ?: "Unknown Sender"
+                        val token = settings.telegramToken.first().ifBlank { "" }
+                        val chatId = settings.telegramChatId.first().ifBlank { "" }
+                        val userName = settings.userName.first().ifBlank { "Unknown User" }
 
                         if (token.isNotBlank() && chatId.isNotBlank()) {
                             Log.d("RelayService", "Attempting Telegram relay")
-                            relayed = TelegramNotificationService.sendMessage("[$prefix - $body", token, chatId)
+                            relayed = TelegramNotificationService.sendMessage("[$userName - $body", token, chatId)
                         }
                     }
 

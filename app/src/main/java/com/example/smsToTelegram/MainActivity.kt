@@ -81,10 +81,6 @@ fun RelayScreen() {
     var newRegex by remember { mutableStateOf("") }
     var editedUserName by remember { mutableStateOf("") }
     
-    LaunchedEffect(userName) {
-        editedUserName = userName
-    }
-    
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var isIgnoringBattery by remember { 
         mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
@@ -151,7 +147,7 @@ fun RelayScreen() {
             ReliabilityBanner(
                 isVisible = !arePermissionsGranted,
                 title = "Allow Permissions",
-                description = "This app requires additional permissions to function correctly. Please enable 'Allow restricted settings' for this app.",
+                description = "Please enable 'Allow restricted settings' for this app. Then enable 'SMS' under Permissions.",
                 action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
             )
 
@@ -184,19 +180,10 @@ fun RelayScreen() {
                 Button(onClick = {
                     scope.launch {
                         settings.updateUserName(editedUserName)
+                        editedUserName = ""
                     }
                 }) {
                     Text("Set")
-                }
-                if (userName.isNotBlank()) {
-                    IconButton(onClick = {
-                        scope.launch {
-                            settings.updateUserName("")
-                            editedUserName = ""
-                        }
-                    }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Reset")
-                    }
                 }
             }
 
