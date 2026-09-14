@@ -12,7 +12,6 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -49,10 +48,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-/**
- * Creates the notification channel early so the system recognizes the app's
- * notification capabilities, preventing the "This app doesn't send notifications" error.
- */
 fun createNotificationChannel(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val channel = NotificationChannel(
@@ -80,7 +75,7 @@ fun RelayScreen() {
 
     var newRegex by remember { mutableStateOf("") }
     var editedUserName by remember { mutableStateOf("") }
-    
+
     val powerManager = remember { context.getSystemService(PowerManager::class.java) }
     var isIgnoringBattery by remember { 
         mutableStateOf(powerManager.isIgnoringBatteryOptimizations(context.packageName))
@@ -103,24 +98,8 @@ fun RelayScreen() {
         }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { _ -> 
-        arePermissionsGranted = checkCorePermissions(context)
-    }
-
     LaunchedEffect(Unit) {
         settings.ensureSeeded()
-        permissionLauncher.launch(
-            mutableListOf(
-                Manifest.permission.RECEIVE_SMS,
-                Manifest.permission.SEND_SMS
-            ).apply {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    add(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }.toTypedArray()
-        )
     }
 
     Scaffold(
@@ -138,17 +117,17 @@ fun RelayScreen() {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             ReliabilityBanner(
-                isVisible = !isIgnoringBattery,
-                title = "Improve Reliability",
-                description = "Set to 'Unrestricted' for instant delivery during idle.",
-                action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
-            )
-
-            ReliabilityBanner(
                 isVisible = !arePermissionsGranted,
                 title = "Allow Permissions",
                 description = "Please enable 'Allow restricted settings' for this app. Then enable 'SMS' under Permissions.",
                 action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            )
+
+            ReliabilityBanner(
+                isVisible = !isIgnoringBattery,
+                title = "Improve Reliability",
+                description = "Set to 'Unrestricted' for instant delivery during idle.",
+                action = Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS
             )
 
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -345,7 +324,7 @@ private fun checkCorePermissions(context: Context): Boolean {
     val notifications = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     } else true
-    
+
     return smsReceive && smsSend && notifications
 }
 
